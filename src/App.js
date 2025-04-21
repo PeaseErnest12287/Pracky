@@ -79,7 +79,7 @@ function App() {
     try {
       setIsLoading(true);
       setError('');
-      setMessage('Downloading...');
+      setMessage('Preparing download...');
       setDownloadLink('');
 
       const response = await axios.post(`${API_BASE}/api/download`, {
@@ -90,11 +90,25 @@ function App() {
       });
 
       if (response.data?.success) {
-        setMessage('Download complete!');
-        // Add small delay to ensure file is fully written
+        setMessage('Download starting...');
+        
+        // Create download link with encoded filename
+        const downloadUrl = `${API_BASE}/api/downloads/${encodeURIComponent(response.data.filename)}`;
+        
+        // Method 1: Create hidden link and click it
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = response.data.filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Method 2: Fallback - set download link for manual click
         setTimeout(() => {
-          setDownloadLink(`${API_BASE}${response.data.download_url}`);
-        }, 500);
+          setDownloadLink(downloadUrl);
+          setMessage('Click the button below if download didn\'t start');
+        }, 2000);
       } else {
         throw new Error(response.data?.error || 'Download failed');
       }
@@ -225,13 +239,18 @@ function App() {
           <div className="download-ready">
             <a
               href={downloadLink}
-              download
               className="download-button"
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = downloadLink;
+              }}
               aria-label="Download video link"
             >
-              ⬇️ Download Your Video
+              ⬇️ Click to Download
             </a>
-            <p className="download-hint">Right click and "Save link as" if download doesn't start</p>
+            <p className="download-hint">
+              Right-click and "Save link as" if download doesn't start
+            </p>
           </div>
         )}
 
