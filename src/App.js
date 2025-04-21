@@ -14,8 +14,8 @@ function App() {
 
   // Set API base URL
   const API_BASE = process.env.NODE_ENV === 'production' 
-    ? 'https://vidsuka.onrender.com' :
-    // : 'http://localhost:5000';
+    ? 'https://vidsuka.onrender.com' 
+     : 'http://localhost:5000';
 
   // Fetch WhatsApp links on component mount
   useEffect(() => {
