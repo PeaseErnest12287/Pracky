@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
+// Configure axios to send credentials with every request
+axios.defaults.withCredentials = true;
+
 function App() {
   const [url, setUrl] = useState('');
   const [message, setMessage] = useState('');
@@ -12,16 +15,23 @@ function App() {
   const [selectedFormat, setSelectedFormat] = useState('best');
   const [whatsappLinks, setWhatsappLinks] = useState({ channel: '', group: '' });
 
-  // Set API base URL
+  // Set API base URL - ensure no trailing slash
   const API_BASE = process.env.NODE_ENV === 'production' 
-    ? 'https://vidsuka.onrender.com' 
-     : 'http://localhost:5000';
+    ? 'https://vidsuka.onrender.com'
+    : 'http://localhost:5000';
 
   // Fetch WhatsApp links on component mount
   useEffect(() => {
     axios.get(`${API_BASE}/api/whatsapp`)
       .then(response => {
-        setWhatsappLinks(response.data);
+        if (response.data.success) {
+          setWhatsappLinks({
+            channel: response.data.channel,
+            group: response.data.group
+          });
+        } else {
+          setWhatsappLinks(response.data); // fallback
+        }
       })
       .catch(error => {
         console.error('Error fetching WhatsApp links:', error);
@@ -30,7 +40,6 @@ function App() {
 
   const fetchVideoInfo = async () => {
     if (!url) return;
-    
     try {
       setIsLoading(true);
       setError('');
@@ -60,7 +69,7 @@ function App() {
         url,
         format_id: selectedFormat
       });
-      
+
       setMessage('Download complete!');
       setDownloadLink(`${API_BASE}${response.data.download_url}`);
     } catch (err) {
@@ -70,11 +79,11 @@ function App() {
     }
   };
 
+  // Delay fetch to avoid spamming API while typing
   useEffect(() => {
     const timer = setTimeout(() => {
       if (url) fetchVideoInfo();
     }, 1000);
-
     return () => clearTimeout(timer);
   }, [url]);
 
@@ -82,7 +91,7 @@ function App() {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = Math.floor(seconds % 60);
-    
+
     return [h, m > 9 ? m : h ? '0' + m : m || '0', s > 9 ? s : '0' + s]
       .filter(Boolean)
       .join(':');
@@ -122,14 +131,14 @@ function App() {
                 <img src={videoInfo.thumbnail} alt="Video thumbnail" />
               </div>
             )}
-            
+
             <div className="video-details">
               <h3>{videoInfo.title}</h3>
               {videoInfo.duration && (
                 <p>Duration: {formatDuration(videoInfo.duration)}</p>
               )}
               <p>Source: {videoInfo.extractor || 'Unknown'}</p>
-              
+
               <div className="format-selector">
                 <label>Quality:</label>
                 <select
