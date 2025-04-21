@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
-// Configure axios
+// Configure axios defaults
 axios.defaults.withCredentials = true;
-axios.defaults.timeout = 30000;
+axios.defaults.timeout = 30000; // 30 second timeout
 
 function App() {
   const [url, setUrl] = useState('');
@@ -19,30 +19,25 @@ function App() {
     group: 'https://chat.whatsapp.com/FAJjIZY3a09Ck73ydqMs4E'
   });
 
+  // Set API base URL from environment variables or fallback
   const API_BASE = process.env.REACT_APP_API_URL || 
     (process.env.NODE_ENV === 'production' 
       ? 'https://vidsuka.onrender.com' 
       : 'http://localhost:5000');
 
-  console.log('API_BASE URL:', API_BASE);
-
+  // Fetch WhatsApp links on component mount
   useEffect(() => {
     const fetchWhatsappLinks = async () => {
-      console.log('Fetching WhatsApp links...');
       try {
         const response = await axios.get(`${API_BASE}/api/whatsapp`);
-        console.log('WhatsApp links fetched:', response.data);
-
         if (response.data?.success) {
           setWhatsappLinks({
             channel: response.data.channel,
             group: response.data.group
           });
-        } else {
-          console.warn('Using default WhatsApp links.');
         }
       } catch (err) {
-        console.error('Failed to fetch WhatsApp links:', err);
+        console.error('Error fetching WhatsApp links:', err);
       }
     };
 
@@ -50,13 +45,8 @@ function App() {
   }, [API_BASE]);
 
   const fetchVideoInfo = async () => {
-    if (!url) {
-      console.warn('No URL provided for video info fetch.');
-      return;
-    }
-
-    console.log('Fetching video info for URL:', url);
-
+    if (!url) return;
+    
     try {
       setIsLoading(true);
       setError('');
@@ -64,35 +54,26 @@ function App() {
         params: { url },
         timeout: 10000
       });
-
-      console.log('Video info response:', response.data);
-
+      
       if (response.data?.success) {
         setVideoInfo(response.data.data);
-        console.log('Video info set:', response.data.data);
         setSelectedFormat('best');
       } else {
         throw new Error(response.data?.error || 'Invalid response');
       }
     } catch (err) {
-      const errorMsg = err.response?.data?.error || err.message || 'Failed to fetch video info';
-      setError(errorMsg);
-      console.error('Video info error:', errorMsg);
+      setError(err.response?.data?.error || err.message || 'Failed to fetch video info');
       setVideoInfo(null);
     } finally {
       setIsLoading(false);
-      console.log('Finished fetching video info.');
     }
   };
 
   const handleDownload = async () => {
     if (!url) {
-      console.warn('No URL entered for download.');
       setError('Please enter a URL');
       return;
     }
-
-    console.log('Starting download for:', url);
 
     try {
       setIsLoading(true);
@@ -107,60 +88,47 @@ function App() {
         timeout: 300000
       });
 
-      console.log('Download response:', response.data);
-
       if (response.data?.success) {
-        const filename = response.data.filename;
-        const downloadUrl = `${API_BASE}/api/downloads/${encodeURIComponent(filename)}`;
-        console.log('Download ready at:', downloadUrl);
-
         setMessage('Download starting...');
-
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = filename;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
+        
+        // Create the download URL with encoded filename
+        const downloadUrl = `${API_BASE}${response.data.download_url}`;
+        
+        // Method 1: Create hidden iframe for download
+        const iframe = document.createElement('iframe');
+        iframe.src = downloadUrl;
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        
+        // Method 2: Fallback after delay
         setTimeout(() => {
           setDownloadLink(downloadUrl);
           setMessage('Click the button below if download didn\'t start');
-          console.log('Fallback download link shown.');
         }, 2000);
-      } else {
-        throw new Error(response.data?.error || 'Download failed');
       }
     } catch (err) {
-      const errorMsg = err.response?.data?.error || err.message || 'Failed to download video';
-      console.error('Download error:', errorMsg);
-      setError(errorMsg);
+      setError(err.response?.data?.error || err.message || 'Failed to download video');
     } finally {
       setIsLoading(false);
-      console.log('Download process ended.');
     }
   };
 
+  // Debounced URL info fetch
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (url) {
-        console.log('URL changed, fetching info after debounce:', url);
-        fetchVideoInfo();
-      }
+      if (url) fetchVideoInfo();
     }, 1000);
 
-    return () => {
-      clearTimeout(timer);
-      console.log('Cleared debounce timer.');
-    };
+    return () => clearTimeout(timer);
   }, [url]);
 
   const formatDuration = (seconds) => {
     if (!seconds) return '00:00';
+    
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = Math.floor(seconds % 60);
+    
     return [h, m > 9 ? m : h ? '0' + m : m || '0', s > 9 ? s : '0' + s]
       .filter(Boolean)
       .join(':');
@@ -178,10 +146,7 @@ function App() {
           <input
             type="text"
             value={url}
-            onChange={(e) => {
-              console.log('URL input changed:', e.target.value);
-              setUrl(e.target.value);
-            }}
+            onChange={(e) => setUrl(e.target.value)}
             placeholder="Paste video URL (YouTube, Facebook, TikTok, etc.)"
             disabled={isLoading}
             aria-label="Video URL input"
@@ -220,7 +185,6 @@ function App() {
                   alt={`Thumbnail for ${videoInfo.title}`} 
                   onError={(e) => {
                     e.target.src = 'placeholder-thumbnail.jpg';
-                    console.warn('Thumbnail failed to load, fallback applied.');
                   }}
                 />
               </div>
@@ -241,10 +205,7 @@ function App() {
                 <select
                   id="format-select"
                   value={selectedFormat}
-                  onChange={(e) => {
-                    console.log('Selected format:', e.target.value);
-                    setSelectedFormat(e.target.value);
-                  }}
+                  onChange={(e) => setSelectedFormat(e.target.value)}
                   disabled={isLoading}
                 >
                   <option value="best">Best Quality</option>
@@ -270,20 +231,22 @@ function App() {
 
         {downloadLink && (
           <div className="download-ready">
-            <a
-              href={downloadLink}
-              className="download-button"
-              onClick={(e) => {
-                e.preventDefault();
-                console.log('Manual download clicked:', downloadLink);
-                window.location.href = downloadLink;
+            <button
+              onClick={() => {
+                const link = document.createElement('a');
+                link.href = downloadLink;
+                link.download = downloadLink.split('/').pop();
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
               }}
+              className="download-button"
               aria-label="Download video link"
             >
               ⬇️ Click to Download
-            </a>
+            </button>
             <p className="download-hint">
-              Right-click and "Save link as" if download doesn't start
+              If download doesn't start, right-click → "Save link as"
             </p>
           </div>
         )}
