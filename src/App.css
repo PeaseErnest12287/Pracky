@@ -1,38 +1,229 @@
-.App {
+/* App.css */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(to right, #1c1c1c, #2a2a72);
+  color: #ffffff;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.app {
+  width: 100%;
+  max-width: 800px;
+  background: #121212;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  padding: 2rem;
+  animation: fadeIn 0.8s ease-in-out;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+header h1 {
+  font-size: 2.5rem;
+  background: linear-gradient(90deg, #00ffd5, #00b3ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: #bbbbbb;
+}
+
+.input-group {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.input-group input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  background: #2c2c2c;
+  color: #fff;
+  transition: 0.3s;
+}
+
+.input-group input:focus {
+  outline: none;
+  background: #383838;
+}
+
+.input-group button {
+  padding: 0.75rem 1.5rem;
+  background: #00ffd5;
+  color: #000;
+  font-weight: bold;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.input-group button:hover {
+  background: #00b3ff;
+}
+
+.alert {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 10px;
+  font-weight: bold;
+}
+
+.alert.error {
+  background: #ff4d4d;
+  color: #fff;
+}
+
+.alert.success {
+  background: #4dff88;
+  color: #000;
+}
+
+.video-preview {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  background: #1a1a1a;
+  border-radius: 15px;
+  padding: 1rem;
+  flex-wrap: wrap;
+}
+
+.video-thumbnail img {
+  max-width: 200px;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0, 255, 213, 0.3);
+}
+
+.video-details {
+  flex: 1;
+}
+
+.video-details h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.video-details p {
+  margin: 0.25rem 0;
+  color: #bbbbbb;
+}
+
+.format-selector {
+  margin-top: 1rem;
+}
+
+.format-selector label {
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.format-selector select {
+  padding: 0.5rem;
+  border-radius: 10px;
+  border: none;
+  background: #2c2c2c;
+  color: #fff;
+}
+
+.download-ready {
+  margin-top: 2rem;
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.download-button {
+  display: inline-block;
+  background: #00ffd5;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  color: #000;
+  font-weight: bold;
+  text-decoration: none;
+  box-shadow: 0 5px 15px rgba(0, 255, 213, 0.4);
+  transition: transform 0.3s ease, background 0.3s ease;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.download-button:hover {
+  transform: scale(1.05);
+  background: #00b3ff;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.whatsapp-links {
+  margin-top: 3rem;
+  text-align: center;
+}
+
+.whatsapp-buttons {
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  gap: 1.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
 }
 
-.App-link {
-  color: #61dafb;
+.whatsapp-button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-weight: bold;
+  text-decoration: none;
+  transition: 0.3s;
+  color: #fff;
 }
 
-@keyframes App-logo-spin {
+.whatsapp-button.channel {
+  background-color: #25d366;
+}
+
+.whatsapp-button.group {
+  background-color: #128c7e;
+}
+
+.whatsapp-button:hover {
+  opacity: 0.85;
+}
+
+/* Fade-in animation */
+@keyframes fadeIn {
   from {
-    transform: rotate(0deg);
+    opacity: 0;
+    transform: translateY(30px);
   }
   to {
-    transform: rotate(360deg);
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive tweaks */
+@media screen and (max-width: 600px) {
+  .input-group {
+    flex-direction: column;
+  }
+
+  .video-preview {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .video-thumbnail img {
+    max-width: 100%;
   }
 }
