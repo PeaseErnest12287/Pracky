@@ -56,7 +56,18 @@ function App() {
       });
       
       if (response.data?.success) {
-        setVideoInfo(response.data.data);
+        // Handle Instagram/Facebook format standardization
+        const data = response.data.data;
+        if (data.extractor === 'instagram' || data.extractor === 'facebook') {
+          data.formats = data.formats || [{
+            format_id: 'best',
+            ext: 'mp4',
+            height: 1080,
+            format_note: 'MP4'
+          }];
+        }
+        
+        setVideoInfo(data);
         setSelectedFormat('best');
       } else {
         throw new Error(response.data?.error || 'Invalid response');
@@ -90,8 +101,6 @@ function App() {
 
       if (response.data?.success) {
         setMessage('Download starting...');
-        
-        // Create the download URL with encoded filename
         const downloadUrl = `${API_BASE}${response.data.download_url}`;
         
         // Method 1: Create hidden iframe for download
@@ -147,7 +156,7 @@ function App() {
             type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="Paste video URL (YouTube, Facebook, TikTok, etc.)"
+            placeholder="Paste video URL (YouTube, Facebook, TikTok, Instagram, etc.)"
             disabled={isLoading}
             aria-label="Video URL input"
           />
@@ -208,21 +217,14 @@ function App() {
                   onChange={(e) => setSelectedFormat(e.target.value)}
                   disabled={isLoading}
                 >
-                  <option value="best">Best Quality</option>
-                  <option value="worst">Worst Quality</option>
-                  <option value="bestvideo">Video Only</option>
-                  <option value="bestaudio">Audio Only</option>
-                  {videoInfo.formats
-                    ?.filter(f => f.ext === 'mp4')
-                    ?.sort((a, b) => (b.height || 0) - (a.height || 0))
-                    ?.map(format => (
-                      <option 
-                        key={format.format_id} 
-                        value={format.format_id}
-                      >
-                        {format.height ? `${format.height}p` : format.format_note} - {format.ext}
-                      </option>
-                    ))}
+                  {videoInfo.formats?.map(format => (
+                    <option 
+                      key={format.format_id} 
+                      value={format.format_id}
+                    >
+                      {format.height ? `${format.height}p` : format.format_note} - {format.ext}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
