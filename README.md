@@ -1,70 +1,83 @@
-# Getting Started with Create React App
+# ⚡️ Pracky Downloader ⚡️  
+> *Made with chaotic genius by Peace Ernest under the mighty Ernest Tech House banner*
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## 🙅‍♂️ Disclaimer:
+You can't use this code.  
+Why? Because it’s **copyrighted AF**.  
+So unless you're a wizard with 10 years of React AND written permission from the Code King himself (that’s me), you better just enjoy the magic from a distance.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🌐 Live Demo
+Already running like a champ here:  
+👉 [Pracky Downloader](https://pracky.vercel.app/)  
+Go ahead, test it. It slaps harder than grandma’s soup on a cold day.
+
+---
+
+## 🧠 What’s This Project Even About?
+
+A universal video downloader made to flex on every other downloader on the block.  
+Paste **any video link** (YouTube, Facebook, Instagram, TikTok—you name it), and BOOM:  
+Clean, renamed, MP4 sauce ready for download.
+
+**Facebook videos?**  
+We rename every single one like a true boss:  
+`Ernest_Tech_House_Facebook_Download.mp4`  
+No fuss. No chaos. Just that smooth Ernest signature.
+
+---
+
+## 🐍 Backend Powered by Python
+
+This masterpiece doesn't work alone—oh no.  
+Behind every great React frontend is a backend doing the real dirty work.
+
+This bad boy uses a **Python backend** that:
+- Fetches and downloads your requested videos
+- Renames them like a disciplined school teacher
+- Sends them back to the frontend like a loyal pigeon
+
+Yeah. We’re using Python because Python is that dude.
+
+---
+
+## 🛠️ Available Scripts
+
+In the React project directory, you can run:
 
 ### `npm start`
-
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
-
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Starts the frontend in dev mode.  
+Open [http://localhost:3000](http://localhost:3000) to vibe with it.
 
 ### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Launches the test runner in interactive watch mode.  
+Run it if you feel lucky.
 
 ### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Builds the app for production.  
+Minifies your code like Marie Kondo on Red Bull.
 
 ### `npm run eject`
+Use it when you're ready to break free from the Matrix.  
+But beware—**you can't go back.**
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+---
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 📚 Learn More
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+You *could* check the [Create React App docs](https://facebook.github.io/create-react-app/docs/getting-started)  
+…but honestly, you won't need it if you're just here to vibe.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+---
 
-## Learn More
+## 👑 Credits
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- Built by: **Peace Ernest**  
+- Powered by: **React + Python + Pure genius**
+- Copyright: **Ernest Tech House**
+- License: **Don't touch. Just watch.**
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
 
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Stay pracky 🧠💥
