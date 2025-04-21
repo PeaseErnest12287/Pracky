@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
-// Configure axios to send credentials with every request
+// Configure axios defaults
 axios.defaults.withCredentials = true;
+axios.defaults.timeout = 30000; // 30 second timeout
 
 function App() {
   const [url, setUrl] = useState('');
@@ -13,41 +14,56 @@ function App() {
   const [downloadLink, setDownloadLink] = useState('');
   const [videoInfo, setVideoInfo] = useState(null);
   const [selectedFormat, setSelectedFormat] = useState('best');
-  const [whatsappLinks, setWhatsappLinks] = useState({ channel: '', group: '' });
+  const [whatsappLinks, setWhatsappLinks] = useState({ 
+    channel: 'https://whatsapp.com/channel/0029VayK4ty7DAWr0jeCZx0i',
+    group: 'https://chat.whatsapp.com/FAJjIZY3a09Ck73ydqMs4E'
+  });
 
-  // Set API base URL - ensure no trailing slash
-  const API_BASE = process.env.NODE_ENV === 'production' 
-    ? 'https://vidsuka.onrender.com'
-    : 'http://localhost:5000';
+  // Set API base URL from environment variables or fallback
+  const API_BASE = process.env.REACT_APP_API_URL || 
+    (process.env.NODE_ENV === 'production' 
+      ? 'https://vidsuka.onrender.com' 
+      : 'http://localhost:5000');
 
   // Fetch WhatsApp links on component mount
   useEffect(() => {
-    axios.get(`${API_BASE}/api/whatsapp`)
-      .then(response => {
-        if (response.data.success) {
+    const fetchWhatsappLinks = async () => {
+      try {
+        const response = await axios.get(`${API_BASE}/api/whatsapp`);
+        if (response.data?.success) {
           setWhatsappLinks({
             channel: response.data.channel,
             group: response.data.group
           });
-        } else {
-          setWhatsappLinks(response.data); // fallback
         }
-      })
-      .catch(error => {
-        console.error('Error fetching WhatsApp links:', error);
-      });
+      } catch (err) {
+        console.error('Error fetching WhatsApp links:', err);
+        // Keep default values if API fails
+      }
+    };
+
+    fetchWhatsappLinks();
   }, [API_BASE]);
 
   const fetchVideoInfo = async () => {
     if (!url) return;
+    
     try {
       setIsLoading(true);
       setError('');
-      const response = await axios.get(`${API_BASE}/api/info?url=${encodeURIComponent(url)}`);
-      setVideoInfo(response.data);
-      setSelectedFormat('best');
+      const response = await axios.get(`${API_BASE}/api/info`, {
+        params: { url },
+        timeout: 10000 // 10 second timeout for info requests
+      });
+      
+      if (response.data?.success) {
+        setVideoInfo(response.data.data);
+        setSelectedFormat('best');
+      } else {
+        throw new Error(response.data?.error || 'Invalid response');
+      }
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch video info');
+      setError(err.response?.data?.error || err.message || 'Failed to fetch video info');
       setVideoInfo(null);
     } finally {
       setIsLoading(false);
@@ -64,34 +80,47 @@ function App() {
       setIsLoading(true);
       setError('');
       setMessage('Downloading...');
+      setDownloadLink('');
 
       const response = await axios.post(`${API_BASE}/api/download`, {
         url,
         format_id: selectedFormat
+      }, {
+        timeout: 300000 // 5 minute timeout for downloads
       });
 
-      setMessage('Download complete!');
-      setDownloadLink(`${API_BASE}${response.data.download_url}`);
+      if (response.data?.success) {
+        setMessage('Download complete!');
+        // Add small delay to ensure file is fully written
+        setTimeout(() => {
+          setDownloadLink(`${API_BASE}${response.data.download_url}`);
+        }, 500);
+      } else {
+        throw new Error(response.data?.error || 'Download failed');
+      }
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to download video');
+      setError(err.response?.data?.error || err.message || 'Failed to download video');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Delay fetch to avoid spamming API while typing
+  // Debounced URL info fetch
   useEffect(() => {
     const timer = setTimeout(() => {
       if (url) fetchVideoInfo();
     }, 1000);
+
     return () => clearTimeout(timer);
   }, [url]);
 
   const formatDuration = (seconds) => {
+    if (!seconds) return '00:00';
+    
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = Math.floor(seconds % 60);
-
+    
     return [h, m > 9 ? m : h ? '0' + m : m || '0', s > 9 ? s : '0' + s]
       .filter(Boolean)
       .join(':');
@@ -112,38 +141,64 @@ function App() {
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Paste video URL (YouTube, Facebook, TikTok, etc.)"
             disabled={isLoading}
+            aria-label="Video URL input"
           />
           <button
             onClick={handleDownload}
             disabled={isLoading || !videoInfo}
+            aria-label="Download button"
           >
-            {isLoading ? 'Processing...' : 'Download'}
+            {isLoading ? (
+              <>
+                <span className="spinner" aria-hidden="true"></span>
+                Processing...
+              </>
+            ) : 'Download'}
           </button>
         </div>
 
-        {error && <div className="alert error">{error}</div>}
-        {message && <div className="alert success">{message}</div>}
+        {error && (
+          <div className="alert error" role="alert">
+            {error}
+          </div>
+        )}
+        {message && (
+          <div className="alert success" role="status">
+            {message}
+          </div>
+        )}
 
         {videoInfo && (
           <div className="video-preview">
             {videoInfo.thumbnail && (
               <div className="video-thumbnail">
-                <img src={videoInfo.thumbnail} alt="Video thumbnail" />
+                <img 
+                  src={videoInfo.thumbnail} 
+                  alt={`Thumbnail for ${videoInfo.title}`} 
+                  onError={(e) => {
+                    e.target.src = 'placeholder-thumbnail.jpg';
+                  }}
+                />
               </div>
             )}
-
+            
             <div className="video-details">
-              <h3>{videoInfo.title}</h3>
-              {videoInfo.duration && (
-                <p>Duration: {formatDuration(videoInfo.duration)}</p>
-              )}
-              <p>Source: {videoInfo.extractor || 'Unknown'}</p>
-
+              <h3>{videoInfo.title || 'Untitled Video'}</h3>
+              
+              <div className="video-meta">
+                {videoInfo.duration && (
+                  <p>Duration: {formatDuration(videoInfo.duration)}</p>
+                )}
+                <p>Source: {videoInfo.extractor || 'Unknown Platform'}</p>
+              </div>
+              
               <div className="format-selector">
-                <label>Quality:</label>
+                <label htmlFor="format-select">Quality:</label>
                 <select
+                  id="format-select"
                   value={selectedFormat}
                   onChange={(e) => setSelectedFormat(e.target.value)}
+                  disabled={isLoading}
                 >
                   <option value="best">Best Quality</option>
                   <option value="worst">Worst Quality</option>
@@ -172,9 +227,11 @@ function App() {
               href={downloadLink}
               download
               className="download-button"
+              aria-label="Download video link"
             >
               ⬇️ Download Your Video
             </a>
+            <p className="download-hint">Right click and "Save link as" if download doesn't start</p>
           </div>
         )}
 
@@ -186,6 +243,7 @@ function App() {
               target="_blank" 
               rel="noopener noreferrer"
               className="whatsapp-button channel"
+              aria-label="WhatsApp Channel"
             >
               WhatsApp Channel
             </a>
@@ -194,6 +252,7 @@ function App() {
               target="_blank" 
               rel="noopener noreferrer"
               className="whatsapp-button group"
+              aria-label="WhatsApp Group"
             >
               WhatsApp Group
             </a>
