@@ -1,147 +1,239 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
 
-// Configure axios defaults
-axios.defaults.withCredentials = true;
-axios.defaults.timeout = 30000; // 30 second timeout
+// Configure axios with optimized defaults
+const api = axios.create({
+  withCredentials: true,
+  timeout: 10000, // 10s for normal requests
+  maxRedirects: 0,
+  maxContentLength: 500 * 1024 * 1024, // 500MB
+  headers: {
+    'Cache-Control': 'no-cache',
+    'X-Requested-With': 'XMLHttpRequest'
+  }
+});
+
+// Memoize API base URL
+const getApiBase = () => (
+  process.env.REACT_APP_API_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://vidsuka.onrender.com'
+    : 'http://localhost:5000')
+);
 
 function App() {
-  const [url, setUrl] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [downloadLink, setDownloadLink] = useState('');
-  const [videoInfo, setVideoInfo] = useState(null);
-  const [selectedFormat, setSelectedFormat] = useState('best');
-  const [whatsappLinks, setWhatsappLinks] = useState({ 
-    channel: 'https://whatsapp.com/channel/0029VayK4ty7DAWr0jeCZx0i',
-    group: 'https://chat.whatsapp.com/FAJjIZY3a09Ck73ydqMs4E'
+  const [state, setState] = useState({
+    url: '',
+    message: '',
+    error: '',
+    isLoading: false,
+    downloadLink: '',
+    videoInfo: null,
+    selectedFormat: 'best',
+    whatsappLinks: {
+      channel: 'https://whatsapp.com/channel/0029VayK4ty7DAWr0jeCZx0i',
+      group: 'https://chat.whatsapp.com/FAJjIZY3a09Ck73ydqMs4E'
+    }
   });
 
-  // Set API base URL from environment variables or fallback
-  const API_BASE = process.env.REACT_APP_API_URL || 
-    (process.env.NODE_ENV === 'production' 
-      ? 'https://vidsuka.onrender.com' 
-      : 'http://localhost:5000');
+  const abortControllerRef = useRef(new AbortController());
+  const downloadIframeRef = useRef(null);
+  const debounceTimerRef = useRef(null);
 
-  // Fetch WhatsApp links on component mount
-  useEffect(() => {
-    const fetchWhatsappLinks = async () => {
-      try {
-        const response = await axios.get(`${API_BASE}/api/whatsapp`);
-        if (response.data?.success) {
-          setWhatsappLinks({
-            channel: response.data.channel,
-            group: response.data.group
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching WhatsApp links:', err);
-      }
-    };
+  // Single state update function for performance
+  const updateState = useCallback((updates) => {
+    setState(prev => ({ ...prev, ...updates }));
+  }, []);
 
-    fetchWhatsappLinks();
-  }, [API_BASE]);
-
-  const fetchVideoInfo = async () => {
-    if (!url) return;
-    
-    try {
-      setIsLoading(true);
-      setError('');
-      const response = await axios.get(`${API_BASE}/api/info`, {
-        params: { url },
-        timeout: 10000
-      });
-      
-      if (response.data?.success) {
-        // Handle Instagram/Facebook format standardization
-        const data = response.data.data;
-        if (data.extractor === 'instagram' || data.extractor === 'facebook') {
-          data.formats = data.formats || [{
-            format_id: 'best',
-            ext: 'mp4',
-            height: 1080,
-            format_note: 'MP4'
-          }];
-        }
-        
-        setVideoInfo(data);
-        setSelectedFormat('best');
-      } else {
-        throw new Error(response.data?.error || 'Invalid response');
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to fetch video info');
-      setVideoInfo(null);
-    } finally {
-      setIsLoading(false);
+  // Efficient download trigger
+  const triggerDownload = useCallback((downloadUrl) => {
+    // Method 1: Reuse hidden iframe
+    if (!downloadIframeRef.current) {
+      downloadIframeRef.current = document.createElement('iframe');
+      downloadIframeRef.current.style.display = 'none';
+      document.body.appendChild(downloadIframeRef.current);
     }
-  };
+    downloadIframeRef.current.src = downloadUrl;
 
-  const handleDownload = async () => {
-    if (!url) {
-      setError('Please enter a URL');
+    // Method 2: Fallback after delay
+    const fallbackTimer = setTimeout(() => {
+      updateState({
+        downloadLink: downloadUrl,
+        message: 'Click below if download didn\'t start'
+      });
+    }, 1500); // Reduced fallback delay
+
+    return () => clearTimeout(fallbackTimer);
+  }, [updateState]);
+
+  // Optimized download handler
+  const handleDownload = useCallback(async () => {
+    if (!state.url) {
+      updateState({ error: 'Please enter a URL' });
       return;
     }
 
     try {
-      setIsLoading(true);
-      setError('');
-      setMessage('Preparing download...');
-      setDownloadLink('');
-
-      const response = await axios.post(`${API_BASE}/api/download`, {
-        url,
-        format_id: selectedFormat
-      }, {
-        timeout: 300000
+      updateState({
+        isLoading: true,
+        error: '',
+        message: 'Preparing download...',
+        downloadLink: ''
       });
 
-      if (response.data?.success) {
-        setMessage('Download starting...');
-        const downloadUrl = `${API_BASE}${response.data.download_url}`;
-        
-        // Method 1: Create hidden iframe for download
-        const iframe = document.createElement('iframe');
-        iframe.src = downloadUrl;
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-        
-        // Method 2: Fallback after delay
-        setTimeout(() => {
-          setDownloadLink(downloadUrl);
-          setMessage('Click the button below if download didn\'t start');
-        }, 2000);
+      // Check for cached download first
+      if (state.videoInfo?.cached) {
+        triggerDownload(`${getApiBase()}${state.videoInfo.download_url}`);
+        return;
+      }
+
+      // Initiate download
+      const { data } = await api.post(`${getApiBase()}/api/download`, {
+        url: state.url,
+        format_id: state.selectedFormat
+      }, {
+        timeout: 120000, // 2 minutes for download
+        signal: abortControllerRef.current.signal
+      });
+
+      if (data?.success) {
+        triggerDownload(`${getApiBase()}${data.download_url}`);
       }
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to download video');
+      if (!axios.isCancel(err)) {
+        updateState({
+          error: err.response?.data?.error || err.message || 'Failed to download video'
+        });
+      }
     } finally {
-      setIsLoading(false);
+      updateState({ isLoading: false });
     }
-  };
+  }, [state.url, state.selectedFormat, state.videoInfo, updateState, triggerDownload]);
 
-  // Debounced URL info fetch
+  // Fetch WhatsApp links on mount (low priority)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (url) fetchVideoInfo();
-    }, 1000);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-    return () => clearTimeout(timer);
-  }, [url]);
+    const fetchWhatsappLinks = async () => {
+      try {
+        const { data } = await api.get(`${getApiBase()}/api/whatsapp`, {
+          signal: controller.signal,
+          priority: 'low'
+        });
 
-  const formatDuration = (seconds) => {
+        if (data?.success) {
+          updateState({
+            whatsappLinks: {
+              channel: data.channel,
+              group: data.group
+            }
+          });
+        }
+      } catch (err) {
+        if (!axios.isCancel(err)) {
+          console.error('WhatsApp links fetch error:', err);
+        }
+      }
+    };
+
+    fetchWhatsappLinks();
+
+    return () => {
+      controller.abort();
+    };
+  }, [updateState]);
+
+  // Optimized video info fetcher
+  const fetchVideoInfo = useCallback(async (url) => {
+    if (!url) return;
+
+    try {
+      updateState({ isLoading: true, error: '' });
+
+      const { data } = await api.get(`${getApiBase()}/api/info`, {
+        params: { url },
+        signal: abortControllerRef.current.signal,
+        timeout: 8000 // Faster timeout for info
+      });
+
+      if (data?.success) {
+        // Normalize platform formats
+        const normalizedInfo = data.data.extractor === 'instagram' || data.data.extractor === 'facebook'
+          ? {
+            ...data.data,
+            formats: data.data.formats || [{
+              format_id: 'best',
+              ext: 'mp4',
+              height: 1080,
+              format_note: 'MP4'
+            }]
+          }
+          : data.data;
+
+        updateState({
+          videoInfo: normalizedInfo,
+          selectedFormat: 'best'
+        });
+      }
+    } catch (err) {
+      if (!axios.isCancel(err)) {
+        updateState({
+          error: err.response?.data?.error || err.message || 'Failed to fetch video info',
+          videoInfo: null
+        });
+      }
+    } finally {
+      updateState({ isLoading: false });
+    }
+  }, [updateState]);
+
+  // Debounced URL info fetch with cleanup
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    if (state.url) {
+      debounceTimerRef.current = setTimeout(() => {
+        fetchVideoInfo(state.url);
+      }, 800); // Optimized debounce time
+    }
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [state.url, fetchVideoInfo]);
+
+  // Memoized duration formatter
+  const formatDuration = useCallback((seconds) => {
     if (!seconds) return '00:00';
-    
+
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = Math.floor(seconds % 60);
-    
+
     return [h, m > 9 ? m : h ? '0' + m : m || '0', s > 9 ? s : '0' + s]
       .filter(Boolean)
       .join(':');
-  };
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const iframe = downloadIframeRef.current;
+
+    return () => {
+      controller.abort();
+      if (iframe && document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    };
+  }, []);
 
   return (
     <div className="app">
@@ -154,18 +246,18 @@ function App() {
         <div className="input-group">
           <input
             type="text"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            value={state.url}
+            onChange={(e) => updateState({ url: e.target.value })}
             placeholder="Paste video URL (YouTube, Facebook, TikTok, Instagram, etc.)"
-            disabled={isLoading}
+            disabled={state.isLoading}
             aria-label="Video URL input"
           />
           <button
             onClick={handleDownload}
-            disabled={isLoading || !videoInfo}
+            disabled={state.isLoading || !state.videoInfo}
             aria-label="Download button"
           >
-            {isLoading ? (
+            {state.isLoading ? (
               <>
                 <span className="spinner" aria-hidden="true"></span>
                 Processing...
@@ -174,52 +266,53 @@ function App() {
           </button>
         </div>
 
-        {error && (
+        {state.error && (
           <div className="alert error" role="alert">
-            {error}
+            {state.error}
           </div>
         )}
-        {message && (
+        {state.message && (
           <div className="alert success" role="status">
-            {message}
+            {state.message}
           </div>
         )}
 
-        {videoInfo && (
+        {state.videoInfo && (
           <div className="video-preview">
-            {videoInfo.thumbnail && (
+            {state.videoInfo.thumbnail && (
               <div className="video-thumbnail">
-                <img 
-                  src={videoInfo.thumbnail} 
-                  alt={`Thumbnail for ${videoInfo.title}`} 
+                <img
+                  src={state.videoInfo.thumbnail}
+                  alt={`Thumbnail for ${state.videoInfo.title}`}
+                  loading="lazy"
                   onError={(e) => {
                     e.target.src = 'placeholder-thumbnail.jpg';
                   }}
                 />
               </div>
             )}
-            
+
             <div className="video-details">
-              <h3>{videoInfo.title || 'Untitled Video'}</h3>
-              
+              <h3>{state.videoInfo.title || 'Untitled Video'}</h3>
+
               <div className="video-meta">
-                {videoInfo.duration && (
-                  <p>Duration: {formatDuration(videoInfo.duration)}</p>
+                {state.videoInfo.duration && (
+                  <p>Duration: {formatDuration(state.videoInfo.duration)}</p>
                 )}
-                <p>Source: {videoInfo.extractor || 'Unknown Platform'}</p>
+                <p>Source: {state.videoInfo.extractor || 'Unknown Platform'}</p>
               </div>
-              
+
               <div className="format-selector">
                 <label htmlFor="format-select">Quality:</label>
                 <select
                   id="format-select"
-                  value={selectedFormat}
-                  onChange={(e) => setSelectedFormat(e.target.value)}
-                  disabled={isLoading}
+                  value={state.selectedFormat}
+                  onChange={(e) => updateState({ selectedFormat: e.target.value })}
+                  disabled={state.isLoading}
                 >
-                  {videoInfo.formats?.map(format => (
-                    <option 
-                      key={format.format_id} 
+                  {state.videoInfo.formats?.map(format => (
+                    <option
+                      key={format.format_id}
                       value={format.format_id}
                     >
                       {format.height ? `${format.height}p` : format.format_note} - {format.ext}
@@ -231,13 +324,13 @@ function App() {
           </div>
         )}
 
-        {downloadLink && (
+        {state.downloadLink && (
           <div className="download-ready">
             <button
               onClick={() => {
                 const link = document.createElement('a');
-                link.href = downloadLink;
-                link.download = downloadLink.split('/').pop();
+                link.href = state.downloadLink;
+                link.download = state.downloadLink.split('/').pop();
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -256,21 +349,23 @@ function App() {
         <div className="whatsapp-links">
           <h4>Join Our Community:</h4>
           <div className="whatsapp-buttons">
-            <a 
-              href={whatsappLinks.channel} 
-              target="_blank" 
+            <a
+              href={state.whatsappLinks.channel}
+              target="_blank"
               rel="noopener noreferrer"
               className="whatsapp-button channel"
               aria-label="WhatsApp Channel"
+              prefetch="none"
             >
               WhatsApp Channel
             </a>
-            <a 
-              href={whatsappLinks.group} 
-              target="_blank" 
+            <a
+              href={state.whatsappLinks.group}
+              target="_blank"
               rel="noopener noreferrer"
               className="whatsapp-button group"
               aria-label="WhatsApp Group"
+              prefetch="none"
             >
               WhatsApp Group
             </a>
@@ -281,4 +376,4 @@ function App() {
   );
 }
 
-export default App;
+export default React.memo(App);
